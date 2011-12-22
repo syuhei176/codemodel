@@ -1,0 +1,914 @@
+/* Calculator in kmyacc + Python. */
+
+%{
+class Node:
+	def __init__(self, type=""):
+		self.type = type
+		self.value = None
+		self.child = []
+
+	def setType(self, type):
+		self.type = type
+
+	def setValue(self, value):
+		self.value = value
+
+	def addChild(self, child):
+		self.child.append(child)
+%}
+
+%token ';' '.' '=' '{' '}' ARROW '[' ']' '"' ':'
+%token NUMBER STRING
+%token TYPE_INT TYPE_STRING TYPE_BOOLEAN TYPE_CHAR TYPE_REAL TYPE_DATE
+%token CREATE DELETE SELECT RELATE UNRELATE GENERATE CALL EXTERNAL_CALL
+%token OF TO ACROSS RELATED BY FROM IN THAT
+%token WHERE AND OR
+%token MANY ONE
+%token IF ELSEIF ELSE FOR EACH
+%token TRUE FALSE
+%token EQU NOTEQU GTEQ STEQ
+%token SELF SELECTED RCVD_EVT
+
+%left '.'
+%left AND OR
+%left EQU NOTEQU '>' '<' GTEQ STEQ
+%left '+' '-'
+%left '*' '/' '%'
+%left EMPTY
+%left NOT
+
+%expect 1
+
+%%
+
+start	: programs {start = programs
+					global root
+					root = start
+					}
+		;
+
+p_programs@programs	: {n = Node()
+					n.setType("PROGRAMS")
+					n2 = Node()
+					n2.setType("NONE")
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+					| c_programs@programs program {n = Node()
+					n.setType("PROGRAMS")
+					for node in $1.child:
+						if node.type != "NONE":
+							n.addChild(node)
+					n2 = Node()
+					n2.setType("PROGRAM")
+					n2.addChild(program)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+					;
+
+program	: action {n = Node()
+					n.setType("ACTION")
+					n.addChild(action)
+					$$ = n
+					#print n.type
+					}
+		| syntax {n = Node()
+					n.setType("SYNTAX")
+					n.addChild(syntax)
+					$$ = n
+					#print n.type
+					}
+		;
+
+action	: CREATE obj_ref OF class ';' {n = Node()
+					n.setType("CRE_OBJ")
+					n.addChild(obj_ref)
+					n.addChild(class)
+					$$ = n
+					#print n.type
+					}
+		| DELETE obj_ref ';' {n = Node()
+					n.setType("DEL_OBJ")
+					n.addChild(obj_ref)
+					$$ = n
+					#print n.type
+					}
+		| obj_ref '=' expr ';' {n = Node()
+					n.setType("WT_ATT")
+					n.addChild(obj_ref)
+					#n.addChild(attr)
+					n.addChild(expr)
+					$$ = n
+					#print n.type
+					}
+		| SELECT MANY obj_refs FROM class where ';' {n = Node()
+					n.setType("SEL_MANY")
+					n.addChild(obj_refs)
+					n.addChild(class)
+					n.addChild(where)
+					$$ = n
+					#print n.type
+					}
+		| SELECT ONE obj_ref FROM class where ';' {n = Node()
+					n.setType("SEL_ONE")
+					n.addChild(obj_ref)
+					n.addChild(class)
+					n.addChild(where)
+					$$ = n
+					#print n.type
+					}
+		| RELATE obj1@obj_ref TO obj2@obj_ref ACROSS assoc ';' {n = Node()
+					n.setType("CRE_LNK")
+					n.addChild(obj1)
+					n.addChild(obj2)
+					n.addChild(assoc)
+					$$ = n
+					#print n.type
+					}
+		| SELECT MANY obj_refs RELATED BY obj_ref ARROW class '[' assoc ']' ';' {n = Node()
+					n.setType("TRA_MANY")
+					n.addChild(obj_refs)
+					n.addChild(obj_ref)
+					n.addChild(class)
+					n.addChild(assoc)
+					$$ = n
+					#print n.type
+					}
+		| SELECT ONE obj1@obj_ref RELATED BY obj2@obj_ref ARROW class '[' assoc ']' ';' {n = Node()
+					n.setType("TRA_ONE")
+					n.addChild(obj1)
+					n.addChild(obj2)
+					n.addChild(class)
+					n.addChild(assoc)
+					$$ = n
+					#print n.type
+					}
+		| UNRELATE obj1@obj_ref FROM obj2@obj_ref ACROSS assoc ';' {n = Node()
+					n.setType("DEL_LNK")
+					n.addChild(obj1)
+					n.addChild(obj2)
+					n.addChild(assoc)
+					$$ = n
+					#print n.type
+					}
+		| RELATE obj1@obj_ref TO obj2@obj_ref ACROSS assoc CREATE lnk_obj ';' {n = Node()
+					n.setType("CRE_LNK_OBJ")
+					n.addChild(obj1)
+					n.addChild(obj2)
+					n.addChild(assoc)
+					n.addChild(lnk_obj)
+					$$ = n
+					#print n.type
+					}
+		| SELECT ONE lnk_obj THAT RELATE obj1@obj_ref TO obj2@obj_ref ACROSS assoc ';' {n = Node()
+					n.setType("TRA_LNK_OBJ")
+					n.addChild(lnk_obj)
+					n.addChild(obj1)
+					n.addChild(obj2)
+					n.addChild(assoc)
+					$$ = n
+					#print n.type
+					}
+		| UNRELATE lnk_obj';' {n = Node()
+					n.setType("DEL_LNK_OBJ")
+					n.addChild(lnk_obj)
+					$$ = n
+					#print n.type
+					}
+		| GENERATE sig arg TO obj_ref ';' {n = Node()
+					n.setType("GEN_SIG")
+					n.addChild(sig)
+					n.addChild(arg)
+					n.addChild(obj_ref)
+					$$ = n
+					#print n.type
+					}
+		| CALL obj_ref '.' function ';' {n = Node()
+					n.setType("CALL")
+					n.addChild(obj_ref)
+					n.addChild(function)
+					$$ = n
+					#print n.type
+					}
+		| obj_ref '.' function ';' {n = Node()
+					n.setType("CALL")
+					n.addChild(obj_ref)
+					n.addChild(function)
+					$$ = n
+					#print n.type
+					}
+		| EXTERNAL_CALL function ';' {n = Node()
+					n.setType("EXTERNAL_CALL")
+					n.addChild(function)
+					$$ = n
+					#print n.type
+					}
+		| function ';' {n = Node()
+					n.setType("EXTERNAL_CALL")
+					n.addChild(function)
+					$$ = n
+					#print n.type
+					}
+		;
+
+function	: function_name '(' params ')' {n = Node()
+					n.setType("FUNCTION")
+					n.addChild(function_name)
+					n.addChild(params)
+					$$ = n
+					#print n.type
+					}
+			;
+
+function_name	: STRING {n = Node()
+					n.setType("FUNCTION_NAME")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+				;
+
+fully_qualified_name	: STRING '.' fqn@fully_qualified_name {n = Node()
+					n.setType("FULLY_QUALIFIED_NAME")
+					n.setValue(STRING)
+					n.addChild(fqn)
+					$$ = n
+					#print n.type
+					}
+		| STRING {n = Node()
+					n.setType("FULLY_QUALIFIED_NAME")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+				;
+
+
+obj_ref : STRING {n = Node()
+					n.setType("OBJ_REF")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+		| SELF {n = Node()
+					n.setType("SELF")
+					n.setValue(SELF)
+					$$ = n
+					#print n.type
+					}
+		| obj_ref1@obj_ref '.' obj_ref2@obj_ref {n = Node()
+					n.setType("OBJ_MEMBER")
+					n.setValue("OBJ_MEMBER")
+					n.addChild(obj_ref1)
+					n.addChild(obj_ref2)
+					$$ = n
+					#print n.type
+					}
+		| SELECTED '.' obj_ref1@obj_ref {n = Node()
+					n.setType("SELECTED")
+					n.setValue(SELECTED)
+					n.addChild(obj_ref1)
+					$$ = n
+					#print n.type
+					}
+		| RCVD_EVT '.' obj_ref1@obj_ref {n = Node()
+					n.setType("RCVD_EVT")
+					n.setValue(RCVD_EVT)
+					n.addChild(obj_ref1)
+					$$ = n
+					#print n.type
+					}
+		;
+
+obj_refs	: STRING {n = Node()
+					n.setType("OBJ_REFS")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+			;
+
+class	: STRING {n = Node()
+					n.setType("CLASS")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+		;
+
+attr	: STRING {n = Node()
+					n.setType("ATTR")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+		;
+
+assoc	: STRING {n = Node()
+					n.setType("ASSOC")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+		;
+
+lnk_obj	: STRING {n = Node()
+					n.setType("LNK_OBJ")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+		;
+
+sig	: STRING {n = Node()
+					n.setType("SIG")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+	;
+
+p_expr@expr	: obj_ref {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("RD_ATT")
+					n2.addChild(obj_ref)
+					#n2.addChild(attr)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| expr1@expr '+' expr2@expr {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("PLUS")
+					n2.addChild(expr1)
+					n2.addChild(expr2)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| expr1@expr '-' expr2@expr {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("MINUS")
+					n2.addChild(expr1)
+					n2.addChild(expr2)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| expr1@expr '*' expr2@expr {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("PROD")
+					n2.addChild(expr1)
+					n2.addChild(expr2)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| expr1@expr '/' expr2@expr {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("DIV")
+					n2.addChild(expr1)
+					n2.addChild(expr2)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| '(' expr1@expr ')' {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("PAR")
+					n2.addChild(expr1)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| NUMBER {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("NUMBER")
+					n2.setValue(NUMBER)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| '-' NUMBER {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("NUMBER")
+					n2.setValue(NUMBER)
+					n2.value = -n2.value
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| '"' STRING '"' {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("CONST_STRING")
+					n2.setValue(STRING)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| EXTERNAL_CALL function {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("EXTERNAL_CALL")
+					n2.addChild(function)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| function {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("EXTERNAL_CALL")
+					n2.addChild(function)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| CALL obj_ref '.' function {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("CALL")
+					n2.addChild(obj_ref)
+					n2.addChild(function)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| obj_ref '.' function {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("CALL")
+					n2.addChild(obj_ref)
+					n2.addChild(function)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+		| TRUE {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("TRUE")
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+		| FALSE {n = Node()
+					n.setType("EXPR")
+					n2 = Node()
+					n2.setType("FALSE")
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			;
+
+where	: {n = Node()
+					n.setType("WHERE")
+					n2 = Node()
+					n2.setType("NONE")
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+		| WHERE conds {n = Node()
+					n.setType("WHERE")
+					n.addChild(conds)
+					$$ = n
+					#print n.type
+					}
+		;
+
+p_conds@conds	: cond {n = Node()
+					n.setType("CONDS")
+					n2 = Node()
+					n2.setType("COND")
+					n2.addChild(cond)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+				| conds1@conds AND conds2@conds {n = Node()
+					n.setType("CONDS")
+					n2 = Node()
+					n2.setType("AND")
+					n2.addChild(conds1)
+					n2.addChild(conds2)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+				| conds1@conds OR conds2@conds {n = Node()
+					n.setType("CONDS")
+					n2 = Node()
+					n2.setType("OR")
+					n2.addChild(conds1)
+					n2.addChild(conds2)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+				| NOT conds1@conds {n = Node()
+					n.setType("CONDS")
+					n2 = Node()
+					n2.setType("NOT")
+					n2.addChild(conds1)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+				| '(' conds1@conds ')' {n = Node()
+					n.setType("CONDS")
+					n2 = Node()
+					n2.setType("PAR")
+					n2.addChild(conds1)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+				;
+
+cond	: expr1@expr EQU expr2@expr {n = Node()
+					n.setType("EQU")
+					n.addChild(expr1)
+					n.addChild(expr2)
+					$$ = n
+					#print n.type
+					}
+		| expr1@expr NOTEQU expr2@expr {n = Node()
+					n.setType("NOTEQU")
+					n.addChild(expr1)
+					n.addChild(expr2)
+					$$ = n
+					#print n.type
+					}
+		| expr1@expr '>' expr2@expr {n = Node()
+					n.setType("GT")
+					n.addChild(expr1)
+					n.addChild(expr2)
+					$$ = n
+					#print n.type
+					}
+		| expr1@expr '<' expr2@expr {n = Node()
+					n.setType("ST")
+					n.addChild(expr1)
+					n.addChild(expr2)
+					$$ = n
+					#print n.type
+					}
+		| expr1@expr GTEQ expr2@expr {n = Node()
+					n.setType("GTEQ")
+					n.addChild(expr1)
+					n.addChild(expr2)
+					$$ = n
+					#print n.type
+					}
+		| expr1@expr STEQ expr2@expr {n = Node()
+					n.setType("STEQ")
+					n.addChild(expr1)
+					n.addChild(expr2)
+					$$ = n
+					#print n.type
+					}
+		| EMPTY obj_ref {n = Node()
+					n.setType("EMPTY")
+					n.addChild(obj_ref)
+					$$ = n
+					#print n.type
+					}
+		| TRUE {n = Node()
+					n.setType("TRUE")
+					$$ = n
+					#print n.type
+					}
+		| FALSE {n = Node()
+					n.setType("FALSE")
+					$$ = n
+					#print n.type
+					}
+		;
+
+arg	: {n = Node()
+					n.setType("ARG")
+					n2 = Node()
+					n2.setType("NONE")
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+	| '(' params ')' {n = Node()
+					n.setType("ARG")
+					n2 = Node()
+					n2.setType("PAR")
+					n2.addChild(params)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+	;
+
+p_params@params	: {n = Node()
+					n.setType("PARAMS")
+					n2 = Node()
+					n2.setType("NONE")
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+				| param {n = Node()
+					n.setType("PARAMS")
+					n.addChild(param)
+					$$ = n
+					#print n.type
+					}
+				| params1@params ',' param {n = Node()
+					n.setType("PARAMS")
+					for node in params1.child:
+						if node.type != "NONE":
+							n.addChild(node)
+					n.addChild(param)
+					$$ = n
+					#print n.type
+					}
+				;
+
+param	: type ':' expr {n = Node()
+					n.setType("PARAM")
+					n.addChild(type)
+					n.addChild(expr)
+					$$ = n
+					};
+
+
+type	: STRING {n = Node()
+					n.setType("TYPE")
+					n.setValue(STRING)
+					$$ = n
+					#print n.type
+					}
+			        | TYPE_INT {n = Node()
+					n.setType("TYPE_INT")
+					n.setValue(TYPE_INT)
+					$$ = n
+					}
+			        | TYPE_STRING {n = Node()
+					n.setType("TYPE_STRING")
+					n.setValue(TYPE_STRING)
+					$$ = n
+					}
+			        | TYPE_BOOLEAN {n = Node()
+					n.setType("TYPE_BOOLEAN")
+					n.setValue(TYPE_BOOLEAN)
+					$$ = n
+					}
+			        | TYPE_CHAR {n = Node()
+					n.setType("TYPE_CHAR")
+					n.setValue(TYPE_CHAR)
+					$$ = n
+					}
+			        | TYPE_REAL {n = Node()
+					n.setType("TYPE_REAL")
+					n.setValue(TYPE_REAL)
+					$$ = n
+					}
+			        | TYPE_DATE {n = Node()
+					n.setType("TYPE_DATE")
+					n.setValue(TYPE_DATE)
+					$$ = n
+					}
+				;
+
+syntax	: IF conds '{' programs '}' else ';' {n = Node()
+					n.setType("IF")
+					n.addChild(conds)
+					n.addChild(programs)
+					n.addChild(else)
+					$$ = n
+					#print n.type
+					}
+		| FOR EACH obj_ref IN obj_refs '{' programs '}' ';' {n = Node()
+					n.setType("FOREACH")
+					n.addChild(obj_ref)
+					n.addChild(obj_refs)
+					n.addChild(programs)
+					$$ = n
+					#print n.type
+					}
+		;
+
+p_else@else	: {n = Node()
+					n.setType("ELSES")
+					n2 = Node()
+					n2.setType("NONE")
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| ELSE '{' programs '}' {n = Node()
+					n.setType("ELSES")
+					n2 = Node()
+					n2.setType("ELSE")
+					n2.addChild(programs)
+					n.addChild(n2)
+					$$ = n
+					#print n.type
+					}
+			| ELSEIF conds '{' programs '}' else1@else {n = Node()
+					n.setType("ELSES")
+					n2 = Node()
+					n2.setType("ELIF")
+					n2.addChild(conds)
+					n2.addChild(programs)
+					n.addChild(n2)
+					for node in else1.child:
+						if node.type != "NONE":
+							n.addChild(node)
+					$$ = n
+					#print n.type
+					}
+			;
+
+%%
+
+''' Lexical analyzer '''
+
+token = None
+toktype = None
+root = None
+
+
+def isletter(c):
+	return (ord('a') <= ord(c) and ord(c) <= ord('z')) or (ord('A') <= ord(c) and ord(c) <= ord('Z')) or (ord('_') == ord(c))
+
+def isdigit(c):
+	return (ord('0') <= ord(c) and ord(c) <= ord('9'))
+
+def yylex():
+	global buffer, token, toktype, yylval
+	while len(buffer) > 0 and (buffer[0] == ' ' or buffer[0] == '\t' or buffer[0] == '\n' or buffer[0] == '\r'):
+		buffer = buffer[1:]
+	if len(buffer) == 0:
+		return 0
+
+	if isletter(buffer[0]):
+		i = 0
+		while i < len(buffer):
+			if not isletter(buffer[i]) and not isdigit(buffer[i]):
+				break
+			i = i + 1
+		token = buffer[:i]
+		buffer = buffer[i:]
+		
+		yylval = token
+
+		#print token
+		if token == "create":
+			return CREATE
+		if token == "delete":
+			return DELETE
+		if token == "select":
+			return SELECT
+		if token == "relate":
+			return RELATE
+		if token == "unrelate":
+			return UNRELATE
+		if token == "generate":
+			return GENERATE
+		if token == "call":
+			return CALL
+		if token == "excall":
+			return EXTERNAL_CALL
+		if token == "many":
+			return MANY
+		if token == "one":
+			return ONE
+		if token == "where":
+			return WHERE
+		if token == "AND" or token == "and":
+			return AND
+		if token == "OR" or token == "or":
+			return OR
+		if token == "if":
+			return IF
+		if token == "elseif":
+			return ELSEIF
+		if token == "else":
+			return ELSE
+		if token == "for":
+			return FOR
+		if token == "each":
+			return EACH
+		if token == "TRUE":
+			return TRUE
+		if token == "FALSE":
+			return FALSE
+		if token == "to":
+			return TO
+		if token == "across":
+			return ACROSS
+		if token == "self":
+			return SELF
+		if token == "selected":
+			return SELECTED
+		if token == "rcvd_evt":
+			return RCVD_EVT
+		if token == "of":
+			return OF
+		if token == "related":
+			return RELATED
+		if token == "by":
+			return BY
+		if token == "from":
+			return FROM
+		if token == "in":
+			return IN
+		if token == "EMPTY":
+			return EMPTY
+		if token == "that":
+			return THAT
+		if token == "->":
+			return ARROW
+		if token == "NOT" or token == "not":
+			return NOT
+		if token == "int":
+			return TYPE_INT
+		if token == "string":
+			return TYPE_STRING
+		if token == "boolean":
+			return TYPE_BOOLEAN
+		if token == "char":
+			return TYPE_CHAR
+		if token == "real":
+			return TYPE_REAL
+		if token == "date":
+			return TYPE_DATE
+		return STRING
+
+	elif isdigit(buffer[0]):
+		i = 0
+		while i < len(buffer):
+			if not isdigit(buffer[i]):
+				break
+			i = i + 1
+		token = buffer[:i]
+		#print token
+		buffer = buffer[i:]
+		yylval = int(token)
+		return NUMBER
+
+	else:
+		if buffer[0] == "=" and buffer[1] == "=":
+				token = buffer[:2]
+				buffer = buffer[2:]
+				#print "=="
+				return EQU
+		elif buffer[0] == "!" and buffer[1] == "=":
+				token = buffer[:2]
+				buffer = buffer[2:]
+				print "!="
+				return NOTEQU
+		elif buffer[0] == ">" and buffer[1] == "=":
+				token = buffer[:2]
+				buffer = buffer[2:]
+				return GTEQ
+		elif buffer[0] == "<" and buffer[1] == "=":
+				token = buffer[:2]
+				buffer = buffer[2:]
+				return STEQ
+		elif buffer[0] == '-' and buffer[1] == '>':
+				token = buffer[:2]
+				buffer = buffer[2:]
+				return ARROW
+		
+		elif buffer[0] == '!':
+				token = buffer[:1]
+				buffer = buffer[1:]
+				return NOT
+		
+		token = buffer[:1]
+#		print token
+		buffer = buffer[1:]
+		return ord(token[0])
+
+def yyerror(msg):
+	yyprintln(msg)
+
+
+buffer = ""
+
+def CompileAS(char):
+	global buffer
+	buffer = char
+	yyparse()
+	return root

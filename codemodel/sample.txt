@@ -1,0 +1,15 @@
+<CodeModel name="Sample">
+ <Package name="com">
+ <Package name="example">
+ <Class name="Point2D">
+  <Property name="x" type="float"/>
+  <Property name="y" type="float"/>
+  <Operation name="add" type="void">
+   <Parameter name="p" type="com.example.Point2D"/>
+   <Programs>
+   </Programs>
+  </Operation>
+ </Class>
+ </Package>
+ </Package>
+</CodeModel>
