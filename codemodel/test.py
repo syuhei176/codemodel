@@ -1,4 +1,4 @@
-from generator.mc import *
+from template.cpp.cpp import *
 
 
 def testGenerate():
@@ -8,7 +8,7 @@ def testGenerate():
     content = ""
     for line in infile:
        content += line
-    gen = Generator('out')
+    gen = CPPGenerator('out')
     gen.GenerateCode(content)
 
 

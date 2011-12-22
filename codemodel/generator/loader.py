@@ -18,6 +18,7 @@ class MyHandler(ContentHandler):
         self.codemodel = None
         self.current_codemodel = None
         self.current_package = None
+        self.current_class = None
 
     def startElement(self, name, attrs):
         self.prev_node = self.current_node
@@ -43,6 +44,15 @@ class MyHandler(ContentHandler):
                     p = CMPackage(attrs_name)
                     self.current_package.packages.append(p)
                     self.current_package = p                
+
+        if name == "Class":
+            attrs_name = attrs.getValue("name")
+            if len(attrs_name) == 0:
+                print "&error=Class name length = 0"
+            else:
+                c = CMClass(attrs_name)
+                self.current_package.classes.append(c)
+                self.current_class =  c
 
     def endElement(self, name):
         self.current_node = self.root

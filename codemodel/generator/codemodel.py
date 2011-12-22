@@ -23,6 +23,7 @@ class CMPackage(object):
     def __init__(self, name):
         self.name = name
         self.packages = []
+        self.classes = []
 
 class CMClass(object):
     def __init__(self, name):
