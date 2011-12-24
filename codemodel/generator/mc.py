@@ -1,6 +1,11 @@
 import sys
 import os
+from mako.template import Template
+from mako.lookup import TemplateLookup
+from mako.runtime import Context
+from StringIO import StringIO
 import loader
+
 
 class BaseGenerator(object):
     
@@ -11,14 +16,14 @@ class BaseGenerator(object):
         model = loader.LoadXML(src)
         for p in model.packages:
             self.GeneratePackage(self.outpath, p)
-            
-    def FileGen(self, model, in_path, out_file):
-        mylookup = TemplateLookup(directories=[self.path], output_encoding="utf-8", encoding_errors='replace')
+    
+    def FileGen(self, model, in_path, outpath):
+        mylookup = TemplateLookup(directories=["./"], output_encoding="utf-8", encoding_errors='replace')
         tmpl = mylookup.get_template(in_path)
         buf = StringIO()
         ctx = Context(buf, root = model)
         tmpl.render_context(ctx)
-        hf = open(self.outpath + out_file, 'w')
+        hf = open(outpath, 'w')
         hf.write(buf.getvalue())
         hf.close()
 

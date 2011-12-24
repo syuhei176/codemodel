@@ -19,12 +19,24 @@ class CMTypedElement(CMNamedElement):
     def __init__(self, name):
         CMNamedElement.__init__(name)
 
-class CMPackage(object):
+class CMPackage(CMNamedElement):
     def __init__(self, name):
-        self.name = name
+        CMNamedElement.__init__(self, name)
         self.packages = []
         self.classes = []
 
-class CMClass(object):
+class CMClass(CMNamedElement):
     def __init__(self, name):
-        self.name = name
+        CMNamedElement.__init__(self, name)
+        self.properties = []
+        self.operations = []
+
+class CMProperty(CMNamedElement):
+    def __init__(self, name, type):
+        CMNamedElement.__init__(self, name)
+        self.type = type
+
+class CMOperation(CMNamedElement):
+    def __init__(self, name, type):
+        CMNamedElement.__init__(self, name)
+        self.type = type

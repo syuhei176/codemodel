@@ -19,6 +19,8 @@ class MyHandler(ContentHandler):
         self.current_codemodel = None
         self.current_package = None
         self.current_class = None
+        self.current_property = None
+        self.current_operation = None
 
     def startElement(self, name, attrs):
         self.prev_node = self.current_node
@@ -52,7 +54,27 @@ class MyHandler(ContentHandler):
             else:
                 c = CMClass(attrs_name)
                 self.current_package.classes.append(c)
-                self.current_class =  c
+                self.current_class = c
+
+        if name == "Property":
+            attrs_name = attrs.getValue("name")
+            attrs_type = attrs.getValue("type")
+            if len(attrs_name) == 0:
+                print "&error=Property name length = 0"
+            else:
+                p = CMProperty(attrs_name, attrs_type)
+                self.current_class.properties.append(p)
+                self.current_property = p
+
+        if name == "Operation":
+            attrs_name = attrs.getValue("name")
+            attrs_type = attrs.getValue("type")
+            if len(attrs_name) == 0:
+                print "&error=Operation name length = 0"
+            else:
+                o = CMOperation(attrs_name, attrs_type)
+                self.current_class.operations.append(o)
+                self.current_operation = o
 
     def endElement(self, name):
         self.current_node = self.root

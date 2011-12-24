@@ -6,7 +6,15 @@ class ${root.name};
 #define __${root.name}_H
 
 class ${root.name} {
+%for property in root.properties:
+	${property.type} ${property.name};
+%endfor
 
+	${root.name}();
+	~${root.name}();
+%for operation in root.operations:
+	${operation.type} ${operation.name}();
+%endfor
 
 };
 
