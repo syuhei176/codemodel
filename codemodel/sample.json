@@ -1,0 +1,11 @@
+{"name":"Sample","packages":[
+{"name":"com","packages":
+[{"name":"example","classes":[
+{"name":"Point2D","properties":[
+{"name":"x","type":"float"},{"name":"y","type":"float"}
+],"operations":[
+{"name":"add","type":"void","parameters":[]}
+]}
+]}]
+}
+]}
